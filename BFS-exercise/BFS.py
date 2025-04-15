@@ -1,6 +1,7 @@
 import random
 from collections import deque
 import networkx as nx
+import igraph as ig
 import matplotlib.pyplot as plt
 import time
 
@@ -15,16 +16,24 @@ def timer(func):
 
 #Variable
 seed = 42
-V = 1000
-p = 0.3
-V1 = 10000
+V1 = 1000
+V2 = 10000
+V3 = 1000000
+
+p = 0.01
+
+
 random.seed(seed) #ksfglkfsjslk
 
 
 #Generating graphs for the BFS
-G1 = nx.erdos_renyi_graph(n=V, p=p, seed=seed)
-G2 = nx.erdos_renyi_graph(n=V1, p=p, seed=seed)
-G3 = nx.erdos_renyi_graph(n=100000, p=p, seed=seed)
+print("Generating G1")
+G1 = ig.Graph.Erdos_Renyi(n=V1, p=p, directed=False, loops=False)
+print("Generating G2")
+G2 = ig.Graph.Erdos_Renyi(n=V2, p=p, directed=False, loops=False)
+print("Generating G3")
+G3 = ig.Graph.Erdos_Renyi(n=V3, p=p, directed=False, loops=False)
+
 
 # graph1 = nx.draw(G1,with_labels=True, font_weight='bold',node_color='yellow')
 # plt.show()
@@ -43,7 +52,7 @@ def sequential_BFS(graph, start_node):
     distance = []
     queue = deque([start_node])
     
-    for vertex in graph.nodes:
+    for vertex in graph.vs  :
         distance.append(float("inf"))
     
     distance[start_node] = 0
@@ -60,12 +69,15 @@ def sequential_BFS(graph, start_node):
     
     return visited, distance
 
+print("BFS G1")
 results, time_taken = sequential_BFS(G1, 3)
+print("BFS G2")
 results2, time_taken2 = sequential_BFS(G2, 3)
+print("BFS G3")
 results3, time_taken3 = sequential_BFS(G3, 3)
 
 # print(f"Visited Verticies: {results[0]}")
 # print(f"Distance from source vertex: {results[1]}")
-print(f"Sequential BFS for {len(G1.nodes)} vertexes was performed in: {time_taken} seconds")
-print(f"Sequential BFS for {len(G2.nodes)} vertexes was performed in: {time_taken2} seconds")
-print(f"Sequential BFS for {len(G3.nodes)} vertexes was performed in: {time_taken3} seconds")
+print(f"Sequential BFS for {len(G1.vs)} vertexes was performed in: {time_taken} seconds")
+print(f"Sequential BFS for {len(G2.vs)} vertexes was performed in: {time_taken2} seconds")
+print(f"Sequential BFS for {len(G3.vs)} vertexes was performed in: {time_taken3} seconds")
