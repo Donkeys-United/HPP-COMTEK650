@@ -1,104 +1,102 @@
 from mpi4py import MPI
 import igraph as ig
 import random
-import math
+import pickle
+from collections import deque, defaultdict
 
-def timer(func):
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        end = time.perf_counter()
-        elapsed = end - start
-        return result, elapsed
-    return wrapper
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
+# === Graph parameters ===
 seed = 42
-V1 = 1000
-V2 = 10000
-V3 = 100000
+NUM_VERTICES = 100
+p = 0.1
+root = 0
 
-p = 0.01
+random.seed(seed)
 
+# === Rank 0 generates graph and partitions ===
+if rank == 0:
+    print("Generating Graph...")
+    G = ig.Graph.Erdos_Renyi(n=NUM_VERTICES, p=p, directed=False, loops=False)
+    adj_list = G.get_adjlist()
 
-random.seed(seed) #ksfglkfsjslk
+    full_graph = {i: neighbors for i, neighbors in enumerate(adj_list)}
 
+    # Partition graph by assigning vertices to processes
+    partitions = [dict() for _ in range(size)]
+    for vertex, neighbors in full_graph.items():
+        owner = vertex * size // NUM_VERTICES  # consistent ownership rule
+        partitions[owner][vertex] = neighbors
 
-#Generating graphs for the BFS
-print("Generating G1")
-G1 = ig.Graph.Erdos_Renyi(n=V1, p=p, directed=False, loops=False)
-print("Generating G2")
-G2 = ig.Graph.Erdos_Renyi(n=V2, p=p, directed=False, loops=False)
-print("Generating G3")
-G3 = ig.Graph.Erdos_Renyi(n=V3, p=p, directed=False, loops=False)
-
-@timer
-def BFS_parallel_MPI(G, start_node):
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    size = comm.Get_size()
-
-    all_nodes = G.vs
-    visited = {node: False for node in all_nodes}
-    distance = {node: float('inf') for node in all_nodes}
-
-    frontier = []
-    if rank == 0:
-        visited[start_node] = True
-        distance[start_node] = 0
-        frontier = [start_node]
- 
-    frontier_number = 1
-
-    while True:
-        # Broadcast the current frontier to all processes
-        frontier = comm.bcast(frontier, root=0)
-        if not frontier:
-            break
-
-        # Calculate slice of frontier for this process
-        frontier_len = len(frontier)
-        chunk_size = math.ceil(frontier_len / size)
-        start = rank * chunk_size
-        end = min((rank + 1) * chunk_size, frontier_len)
-        try:
-            local_frontier = frontier[start:end]
-        except:
-            local_frontier = None
-
-        # Local computation
-        local_next_frontier = set()
-        for node in local_frontier:
-            for neighbor in G.neighbors(node):
-                if not visited[neighbor]:
-                    local_next_frontier.add(neighbor)
-
-        # Gather all local frontiers at root
-        gathered = comm.gather(local_next_frontier, root=0)
-
-        # At root: update visited/distance and prepare next frontier
-        if rank == 0:
-            next_frontier = set()
-            for local in gathered:
-                for node in local:
-                    if not visited[node]:
-                        visited[node] = True
-                        distance[node] = frontier_number
-                        next_frontier.add(node)
-            frontier = list(next_frontier)
+    for i in range(size):
+        if i == 0:
+            local_graph = partitions[0]
         else:
-            frontier = None
+            comm.send(pickle.dumps(partitions[i]), dest=i)
 
-        frontier_number += 1
+else:
+    local_graph = pickle.loads(comm.recv(source=0))
 
-    # Broadcast final distances to all processes
-    distance = comm.bcast(distance, root=0)
-    return distance
+# === Setup local state ===
+visited = set()
+local_distances = {}
+local_frontier = deque()
 
+# Determine root owner correctly
+root_owner = root * size // NUM_VERTICES
+if rank == root_owner:
+    visited.add(root)
+    local_distances[root] = 0
+    local_frontier.append(root)
 
+# === BFS loop ===
+while True:
+    send_buf = defaultdict(list)
 
-"""
-Running the code:
-mpiexec -n 4 python parallel_bfs.py
-# Convert to adjacency list
-    G = {node: list(G_nx.neighbors(node)) for node in G_nx.nodes()}
-"""
+    while local_frontier:
+        v = local_frontier.popleft()
+
+        # Defensive check: we should only process vertices we own
+        if v not in local_graph:
+            continue
+
+        for neighbor in local_graph[v]:
+            owner = neighbor * size // NUM_VERTICES
+            new_dist = local_distances[v] + 1
+
+            if owner == rank:
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    local_distances[neighbor] = new_dist
+                    local_frontier.append(neighbor)
+            else:
+                send_buf[owner].append((neighbor, new_dist))
+
+    # Prepare data for all-to-all communication
+    send_data = [send_buf[i] for i in range(size)]
+    recv_data = comm.alltoall(send_data)
+
+    any_new = False
+    for items in recv_data:
+        for node, dist in items:
+            if node not in visited:
+                visited.add(node)
+                local_distances[node] = dist
+                local_frontier.append(node)
+                any_new = True
+
+    # Synchronize: are we done globally?
+    global_continue = comm.allreduce(int(any_new), op=MPI.SUM)
+    if global_continue == 0:
+        break
+
+# === Gather and print results ===
+all_local_distances = comm.gather(local_distances, root=0)
+
+if rank == 0:
+    final_distances = {}
+    for proc_distances in all_local_distances:
+        final_distances.update(proc_distances)
+    print(final_distances)
