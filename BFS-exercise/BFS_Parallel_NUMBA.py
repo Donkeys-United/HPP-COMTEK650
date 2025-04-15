@@ -60,7 +60,7 @@ def bfs_parallel(adjlist, start, num_nodes, num_processors):
     while frontier_size > 0:
         jump_size = ceil(frontier_size / num_processors)
         local_sizes = np.zeros(num_processors, dtype=np.int32)
-        local_frontiers = np.full((num_processors, max_nodes), -1, dtype=np.int32)
+        local_frontiers = np.full((num_processors, num_nodes), -1, dtype=np.int32)
 
         for p in prange(num_processors):
             start_idx = p * jump_size
