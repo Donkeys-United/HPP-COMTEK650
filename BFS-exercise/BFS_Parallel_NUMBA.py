@@ -48,7 +48,7 @@ def build_numba_adjlist(g: ig.Graph):
 def bfs_parallel(adjlist, start, num_nodes, num_processors):
     distance = np.full(num_nodes, np.inf)
     visited = np.zeros(num_nodes, dtype=np.bool_)
-    frontier = np.full(max_nodes, -1, dtype=np.int32)
+    frontier = np.full(num_nodes, -1, dtype=np.int32)
     next_frontier = np.full(num_nodes, -1, dtype=np.int32)
 
     distance[start] = 0
