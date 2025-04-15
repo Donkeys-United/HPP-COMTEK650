@@ -1,6 +1,5 @@
 import random
 from collections import deque
-import networkx as nx
 import igraph as ig
 import matplotlib.pyplot as plt
 import time
@@ -18,7 +17,7 @@ def timer(func):
 seed = 42
 V1 = 1000
 V2 = 10000
-V3 = 1000000
+V3 = 100000
 
 p = 0.01
 
