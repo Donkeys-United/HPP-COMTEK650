@@ -33,14 +33,6 @@ G2 = ig.Graph.Erdos_Renyi(n=V2, p=p, directed=False, loops=False)
 print("Generating G3")
 G3 = ig.Graph.Erdos_Renyi(n=V3, p=p, directed=False, loops=False)
 
-#Load graphs from pickle files, for faster runtime.
-with open('graph_100000.pickle', 'rb') as f:
-    G100k = pickle.load(f)
-with open('graph_10000.pickle', 'rb') as f:
-    G10k = pickle.load(f)
-with open('graph_1000.pickle', 'rb') as f:
-    G1k = pickle.load(f)
-
 
 @timer
 def sequential_BFS(graph, start_node):
