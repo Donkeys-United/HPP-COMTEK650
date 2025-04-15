@@ -1,0 +1,109 @@
+BFS_parallel(G, P, s):
+    num_processor = length(P)
+    frontier[0] = s
+    
+    for each vertex v in G:
+        distance[v] = ∞
+        visited[v] = False
+
+    distance[s] = 0
+    visited[s] = True
+
+    frontier_number = 1
+    while frontier is not empty:
+        total_nodes = length(frontier)
+        jump_size = ceil(total_nodes / num_processor)
+        for processor p in P:
+            local_visited
+            for i from 0 to (jump_size - 1):
+                current_node = frontier[p + i * num_processor]
+                for each neighbor w of current_node in G:
+                    if w is not in visited:
+                        local_visited[w] = True
+        
+        combine local_visited for each processor p in frontier_visited
+        for vertex v in frontier_visited:
+            visited[v] = True
+            distance[v] = frontier_number
+        
+        frontier = frontier_visited
+        frontier_number += 1
+
+
+
+BFS_parallel(G, P, s):
+    num_processors = length(P)
+    frontier = {s}
+    
+    for each vertex v in G:
+        distance[v] = ∞
+        visited[v] = False
+
+    distance[s] = 0
+    visited[s] = True
+    frontier_number = 1
+
+    while frontier is not empty:
+        next_frontier = empty set
+        parallel for p in P:
+            local_frontier = empty set
+            start = p * ceil(length(frontier) / num_processors)
+            end = min((p + 1) * ceil(length(frontier) / num_processors), length(frontier))
+            for i from start to end - 1:
+                current_node = frontier[i]
+                for each neighbor w of current_node:
+                    if not visited[w]:
+                        atomically:
+                            if not visited[w]:
+                                visited[w] = True
+                                distance[w] = frontier_number
+                                local_frontier.add(w)
+            end for
+            atomically merge local_frontier into next_frontier
+        end parallel for
+        frontier = next_frontier
+        frontier_number += 1
+
+
+
+BFS_parallel(G, P, s):
+    num_processors = length(P)
+    frontier = [s]
+
+    for each vertex v in G:
+        distance[v] = ∞
+        visited[v] = False
+
+    distance[s] = 0
+    visited[s] = True
+    frontier_level = 1
+
+    while frontier is not empty:
+        total_nodes = length(frontier)
+        jump_size = ceil(total_nodes / num_processors)
+        next_frontier_parts = array of sets of size num_processors
+
+        parallel for p in 0 to num_processors - 1:
+            local_frontier = empty set
+            start = p * jump_size
+            end = min((p + 1) * jump_size, total_nodes)
+
+            for i from start to end - 1:
+                current_node = frontier[i]
+                for each neighbor w of current_node:
+                    if not visited[w]:
+                        local_frontier.add(w)
+
+            next_frontier_parts[p] = local_frontier
+        end parallel for
+
+        # Combine phase (sequential or parallel-safe reduce)
+        next_frontier = union of all next_frontier_parts
+
+        for each v in next_frontier:
+            if not visited[v]:
+                visited[v] = True
+                distance[v] = frontier_level
+
+        frontier = list(next_frontier)
+        frontier_level += 1
