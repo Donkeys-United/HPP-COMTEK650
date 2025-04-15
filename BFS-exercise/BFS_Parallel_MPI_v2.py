@@ -25,6 +25,7 @@ if rank == 0:
     # Create full adjacency list
     full_graph = {i: neighbors for i, neighbors in enumerate(adj_list)}
 
+    print("Partitioning graph...")
     # Partition graph among processes
     partitions = [dict() for _ in range(size)]
     for vertex, neighbors in full_graph.items():
@@ -32,6 +33,7 @@ if rank == 0:
         partitions[owner][vertex] = neighbors
 
     # Send partitions
+    print("Distributing partitions...")
     for i in range(1, size):
         comm.send(pickle.dumps(partitions[i]), dest=i)
     local_graph = partitions[0]
@@ -78,7 +80,7 @@ while True:
     # Process received nodes
     for neighbor_list in recv_data:
         for node in neighbor_list:
-            if node in local_graph and local_distances.get(node, float('inf')) == float('inf'):
+            if node in local_graph and local_distances[node] == float('inf'):
                 local_distances[node] = level + 1
                 next_frontier.append(node)
 
