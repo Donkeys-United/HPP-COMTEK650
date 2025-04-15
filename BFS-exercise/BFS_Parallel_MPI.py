@@ -10,8 +10,8 @@ size = comm.Get_size()
 
 # === Graph parameters ===
 seed = 42
-NUM_VERTICES = 100
-p = 0.1
+NUM_VERTICES = 10
+p = 0.3
 root = 0
 
 random.seed(seed)
@@ -38,6 +38,8 @@ if rank == 0:
 
 else:
     local_graph = pickle.loads(comm.recv(source=0))
+
+print(f"Node {rank} local graph: {local_graph}")
 
 # === Setup local state ===
 visited = set()
@@ -66,6 +68,8 @@ while True:
             owner = neighbor * size // NUM_VERTICES
             new_dist = local_distances[v] + 1
 
+            if neighbor == 6:
+                print(new_dist, owner, rank)
             if owner == rank:
                 if neighbor not in visited:
                     visited.add(neighbor)
@@ -81,8 +85,15 @@ while True:
     any_new = False
     for items in recv_data:
         for node, dist in items:
+            
             if node not in visited:
                 visited.add(node)
+                local_distances[node] = dist
+                local_frontier.append(node)
+                any_new = True
+            elif dist < local_distances[node]:
+                #if the node has already been visited but we have received a new short distance we will re-add
+                #the node to the frontier because we need to update the distances dependent on this node
                 local_distances[node] = dist
                 local_frontier.append(node)
                 any_new = True
