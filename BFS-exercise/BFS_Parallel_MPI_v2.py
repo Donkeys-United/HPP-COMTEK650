@@ -9,8 +9,8 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 # Configuration
-NUM_VERTICES = 12
-p = 0.3
+NUM_VERTICES = 100000
+p = 0.01
 seed = 42
 root = 0
 
@@ -55,6 +55,9 @@ def get_owner(vertex):
 if get_owner(root) == rank:
     local_distances[root] = 0
     current_frontier.append(root)
+
+if rank == 0:
+    start_time = MPI.Wtime()
 
 level = 0
 while True:
@@ -104,4 +107,6 @@ if rank == 0:
     for part in all_distances:
         for k, v in part.items():
             final_distances[k] = v
-    print(final_distances)
+    end_time = MPI.Wtime()
+    #print(final_distances)
+    print(f"Time to completion: {end_time - start_time} seconds")
